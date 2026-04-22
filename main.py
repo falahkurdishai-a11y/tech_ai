@@ -1,10 +1,10 @@
 import telebot
-from telebot import types
 import requests
+from telebot import types
 
-# توکنێ تە یێ بوت فازەری
+# توکنێ بوت فازەری ل ڤێرە دانە
 TOKEN = '8631109877:AAHFNwNoHJgeSGLUozS2choOiTc17ePqD1Q'
-# ناڤێ چەناڵێ تە بێ @
+# ناڤێ چەناڵێ تە
 CHANNEL_USERNAME = 'tech_ai_falah'
 
 bot = telebot.TeleBot(TOKEN)
@@ -19,58 +19,54 @@ def check_sub(user_id):
 @bot.message_handler(commands=['start'])
 def start(message):
     name = message.from_user.first_name
-    user_id = message.from_user.id
-    
-    if check_sub(user_id):
-        bot.send_message(user_id, f"تو سه‌ركه‌فتى به‌ڕێز {name}، هه‌ر ڤيديۆيه‌كا ته‌ بڤێت لينكى فڕێكه‌، په‌يچێ **Tech AI** دێ بۆته‌ دانلوت كه‌ت.")
+    if check_sub(message.from_user.id):
+        bot.send_message(message.chat.id, f"خێرهاتی بەڕێز {name} ✅\nلینکی فڕێکە دا بۆتە دانلوت بکەم (TikTok, Insta, FB, YT)")
     else:
         markup = types.InlineKeyboardMarkup()
-        btn1 = types.InlineKeyboardButton("Channel 📢", url=f"https://t.me/{CHANNEL_USERNAME}")
+        btn1 = types.InlineKeyboardButton("Join Channel 📢", url=f"https://t.me/{CHANNEL_USERNAME}")
         btn2 = types.InlineKeyboardButton("I am joined ✅", callback_data="check")
-        markup.add(btn1)
-        markup.add(btn2)
-        
-        bot.send_message(user_id, f"خێرهاتى به‌ڕێز {name}، پێدڤييه‌ ده‌ستپێكێ چه‌نالێ مه‌ جوين بكهى:\nhttps://t.me/{CHANNEL_USERNAME}", reply_markup=markup)
+        markup.add(btn1, btn2)
+        bot.send_message(message.chat.id, f"خێرهاتى بەڕێز {name}، پێدڤييه‌ ده‌ستپێكێ چه‌نالێ مه‌ جوين بكهى:\n@{CHANNEL_USERNAME}", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: call.data == "check")
 def check_callback(call):
     if check_sub(call.from_user.id):
-        bot.edit_message_text("تو سه‌ركه‌فتى! نوکە لینکی فڕێکە پەیجێ Tech AI دێ بۆتە دانلوت کەت.", call.message.chat.id, call.message.message_id)
+        bot.edit_message_text("سوپاس بۆ جوینکرن! نوکە لینکی فڕێکە.", call.message.chat.id, call.message.message_id)
     else:
         bot.answer_callback_query(call.id, "تە هێشتا جوین نەکرییە! ⚠️", show_alert=True)
 
 @bot.message_handler(func=lambda message: message.text.startswith("http"))
-def download_video(message):
-    user_id = message.from_user.id
-    if not check_sub(user_id):
+def download_process(message):
+    if not check_sub(message.from_user.id):
         start(message)
         return
 
     url = message.text
-    bot.reply_to(message, "کێمەک چاڤەڕێ بە... پەیجێ **Tech AI** یێ ڤیدیۆیێ ئامادە دکەت ⏳")
+    msg = bot.reply_to(message, "کێمەک چاڤەڕێ بە... پەیجێ **Tech AI** یێ ڤیدیۆیێ ئامادە دکەت ⏳")
 
     try:
-        # بکارئینانا API بۆ دانلوتکرنا ڤیدیۆیان
+        # بکارئینانا سێرڤەرێ Cobalt بۆ دانلوتێ
         api_url = "https://api.cobalt.tools/api/json"
         headers = {
-            "Content-Type": "application/json",
             "Accept": "application/json",
+            "Content-Type": "application/json"
         }
-        data = {
+        payload = {
             "url": url,
-            "vQuality": "720"
+            "vQuality": "720",
+            "isAudioOnly": False
         }
-        
-        response = requests.post(api_url, json=data, headers=headers)
-        res_data = response.json()
 
-        if "url" in res_data:
-            video_link = res_data["url"]
-            bot.send_video(message.chat.id, video_link, caption="ڤیدیۆیا تە ب سەرکەفتی هاتە دانلوتکرن ب رێکا Tech AI ✅")
+        response = requests.post(api_url, json=payload, headers=headers)
+        data = response.json()
+
+        if "url" in data:
+            bot.send_video(message.chat.id, data["url"], caption="ڤیدیۆیا تە ب سەرکەفتی هاتە دانلوتکرن ✅\nBy: @tech_ai_falah")
+            bot.delete_message(message.chat.id, msg.message_id)
         else:
-            bot.reply_to(message, "ببورە، من نەشیا ڤێ ڤیدیۆیێ دانلوت بکەم. پشت راست بە کو لینکێ تە یێ دروستە.")
-            
+            bot.edit_message_text("ببورە، کێشەک هەبوو! دیتبیت ڤیدیۆیا تە تایبەتە (Private) یان لینک یێ خەلەتە.", message.chat.id, msg.message_id)
+
     except Exception as e:
-        bot.reply_to(message, "ئێشکاڵەک د سێرڤەری دا چێبوو، هیڤییە پاشتر هەول بدەڤە.")
+        bot.edit_message_text(f"ئێشکاڵەک هەبوو د سێرڤەری دا، هیڤییە پاشتر هەوڵ بدە ڤە.", message.chat.id, msg.message_id)
 
 bot.polling()
