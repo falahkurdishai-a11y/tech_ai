@@ -8,7 +8,7 @@ import requests
 from urllib.parse import urlparse
 
 # Replace with your bot token from BotFather
-BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
+BOT_TOKEN = 8631109877:AAHFNwNoHJgeSGLUozS2choOiTc17ePqD1Q
 CHANNEL_USERNAME = "@tech_ai_falah"
 CHANNEL_LINK = "https://t.me/tech_ai_falah"
 
