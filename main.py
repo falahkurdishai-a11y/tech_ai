@@ -1,74 +1,76 @@
-import os, telebot, requests, time
+import telebot
 from telebot import types
-from flask import Flask
-from threading import Thread
+import requests
 
-# --- زانیاریێن بۆتی ---
-API_TOKEN = "8631109877:AAHFNwNoHJgeSGLUozS2choOiTc17ePqD1Q"
-CHANNEL_ID = "@tech_ai_falah"
-CHANNEL_URL = "https://t.me/tech_ai_falah"
-bot = telebot.TeleBot(API_TOKEN)
+# توکنێ تە یێ بوت فازەری
+TOKEN = '8631109877:AAHFNwNoHJgeSGLUozS2choOiTc17ePqD1Q'
+# ناڤێ چەناڵێ تە بێ @
+CHANNEL_USERNAME = 'tech_ai_falah'
+
+bot = telebot.TeleBot(TOKEN)
 
 def check_sub(user_id):
     try:
-        status = bot.get_chat_member(CHANNEL_ID, user_id).status
+        status = bot.get_chat_member(f"@{CHANNEL_USERNAME}", user_id).status
         return status in ['member', 'administrator', 'creator']
-    except Exception: return False
+    except:
+        return False
 
 @bot.message_handler(commands=['start'])
 def start(message):
+    name = message.from_user.first_name
     user_id = message.from_user.id
+    
     if check_sub(user_id):
-        bot.send_message(message.chat.id, "سڵاو كاك فەلاح! 🤖\nبۆتێ تە نوژەن بوو بۆ دانلۆدکرنێ.\nتکایە لینکا ڤیدیۆیێ بفرێکه (YouTube, FB, IG, TikTok).")
+        bot.send_message(user_id, f"تو سه‌ركه‌فتى به‌ڕێز {name}، هه‌ر ڤيديۆيه‌كا ته‌ بڤێت لينكى فڕێكه‌، په‌يچێ **Tech AI** دێ بۆته‌ دانلوت كه‌ت.")
     else:
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton("Join Channel", url=CHANNEL_URL))
-        markup.add(types.InlineKeyboardButton("جوین بووم ✅", callback_data="check"))
-        bot.send_message(message.chat.id, f"بەڕێز، بۆ کارپێکرنا بۆتی تکایە سەرەتا جوینی کەناڵێ مە بکه:\n{CHANNEL_URL}", reply_markup=markup)
+        btn1 = types.InlineKeyboardButton("Channel 📢", url=f"https://t.me/{CHANNEL_USERNAME}")
+        btn2 = types.InlineKeyboardButton("I am joined ✅", callback_data="check")
+        markup.add(btn1)
+        markup.add(btn2)
+        
+        bot.send_message(user_id, f"خێرهاتى به‌ڕێز {name}، پێدڤييه‌ ده‌ستپێكێ چه‌نالێ مه‌ جوين بكهى:\nhttps://t.me/{CHANNEL_USERNAME}", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: call.data == "check")
 def check_callback(call):
     if check_sub(call.from_user.id):
-        bot.answer_callback_query(call.id, "سوپاس! نوکە دشێی بۆتی بکاربینی ✅")
-        bot.edit_message_text("تۆماربوونی تە سەرکەفتوو بوو! لینکا ڤیدیۆیێ بفرێکه.", call.message.chat.id, call.message.message_id)
+        bot.edit_message_text("تو سه‌ركه‌فتى! نوکە لینکی فڕێکە پەیجێ Tech AI دێ بۆتە دانلوت کەت.", call.message.chat.id, call.message.message_id)
     else:
-        bot.answer_callback_query(call.id, "تە هێشتا جوین نەکرییه! ❌", show_alert=True)
+        bot.answer_callback_query(call.id, "تە هێشتا جوین نەکرییە! ⚠️", show_alert=True)
 
-@bot.message_handler(func=lambda m: True)
-def handle_download(message):
-    if not check_sub(message.from_user.id):
+@bot.message_handler(func=lambda message: message.text.startswith("http"))
+def download_video(message):
+    user_id = message.from_user.id
+    if not check_sub(user_id):
         start(message)
         return
-    
+
     url = message.text
-    if not url.startswith("http"): return
-    
-    msg = bot.reply_to(message, "⏳ Tech AI خەریکی دانلۆدکردنە...")
+    bot.reply_to(message, "کێمەک چاڤەڕێ بە... پەیجێ **Tech AI** یێ ڤیدیۆیێ ئامادە دکەت ⏳")
 
     try:
-        # بکارئینانا API یەکا ب هێز بۆ هەمی پلاتفۆرمان
+        # بکارئینانا API بۆ دانلوتکرنا ڤیدیۆیان
         api_url = "https://api.cobalt.tools/api/json"
-        payload = {"url": url, "vQuality": "720"}
-        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+        data = {
+            "url": url,
+            "vQuality": "720"
+        }
         
-        response = requests.post(api_url, json=payload, headers=headers)
-        data = response.json()
+        response = requests.post(api_url, json=data, headers=headers)
+        res_data = response.json()
 
-        if "url" in data:
-            video_url = data["url"]
-            bot.send_video(message.chat.id, video_url, caption="ڤیدیۆیا تە ئامادەیە ✅\nب ڕێکا: @tech_ai_falah")
-            bot.delete_message(message.chat.id, msg.message_id)
+        if "url" in res_data:
+            video_link = res_data["url"]
+            bot.send_video(message.chat.id, video_link, caption="ڤیدیۆیا تە ب سەرکەفتی هاتە دانلوتکرن ب رێکا Tech AI ✅")
         else:
-            bot.edit_message_text("ئیشکال: ئەڤ لینکە ناهێتە دانلۆدکرن یان یا تایبەتە.", message.chat.id, msg.message_id)
+            bot.reply_to(message, "ببورە، من نەشیا ڤێ ڤیدیۆیێ دانلوت بکەم. پشت راست بە کو لینکێ تە یێ دروستە.")
             
     except Exception as e:
-        bot.edit_message_text("هەڵەیەک ڕوویدا، تکایە دووبارە تاقی بکەوە.", message.chat.id, msg.message_id)
+        bot.reply_to(message, "ئێشکاڵەک د سێرڤەری دا چێبوو، هیڤییە پاشتر هەول بدەڤە.")
 
-app = Flask('')
-@app.route('/')
-def home(): return "Bot is Online"
-def run(): app.run(host='0.0.0.0', port=os.getenv('PORT', 8080))
-
-if __name__ == "__main__":
-    Thread(target=run).start()
-    bot.infinity_polling()
+bot.polling()
